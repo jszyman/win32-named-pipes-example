@@ -28,7 +28,7 @@ int main(int argc, const char **argv)
     // Create a pipe to send data
     HANDLE pipe = CreateNamedPipe(
         L"\\\\.\\pipe\\my_pipe", // name of the pipe
-        PIPE_ACCESS_OUTBOUND, // 1-way pipe -- send only
+        PIPE_ACCESS_DUPLEX, 
         PIPE_TYPE_BYTE, // send data as a byte stream
         1, // only allow 1 instance of this pipe
         0, // no outbound buffer
@@ -56,15 +56,41 @@ int main(int argc, const char **argv)
         return 1;
     }
 
-    wcout << "Sending data to pipe..." << endl;
+    wcout << "Reading data from pipe..." << endl;
+
+    // The read operation will block until there is data to read
+    wchar_t buffer[128];
+    DWORD numBytesRead = 0;
+    result = ReadFile(
+        pipe,
+        buffer, // the data from the pipe will be put here
+        127 * sizeof(wchar_t), // number of bytes allocated
+        &numBytesRead, // this will store number of bytes actually read
+        NULL // not using overlapped IO
+        );
+
+    if (result) {
+        buffer[numBytesRead / sizeof(wchar_t)] = '\0'; // null terminate the string
+        wcout << "Number of bytes read: " << numBytesRead << endl;
+        wcout << "Message: " << buffer << endl;
+    }
+    else {
+        wcout << "Failed to read data from the pipe." << endl;
+    }
+
+    for (int i = 0; buffer[i] != '\0'; i++)
+    {
+        buffer[i] = towupper(buffer[i]);
+    }
+ 
+    wcout << "Sending uppercase data to pipe..." << endl;
 
     // This call blocks until a client process reads all the data
-    const wchar_t *data = L"*** Hello Pipe World ***";
     DWORD numBytesWritten = 0;
     result = WriteFile(
         pipe, // handle to our outbound pipe
-        data, // data to send
-        wcslen(data) * sizeof(wchar_t), // length of data to send (bytes)
+        buffer, // data to send
+        wcslen(buffer) * sizeof(wchar_t), // length of data to send (bytes)
         &numBytesWritten, // will store actual amount of data sent
         NULL // not using overlapped IO
         );

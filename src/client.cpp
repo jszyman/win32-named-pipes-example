@@ -29,7 +29,7 @@ int main(int argc, const char **argv)
     // Most of these parameters aren't very relevant for pipes.
     HANDLE pipe = CreateFile(
         L"\\\\.\\pipe\\my_pipe",
-        GENERIC_READ, // only need read access
+        GENERIC_READ | GENERIC_WRITE, 
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         NULL,
         OPEN_EXISTING,
@@ -44,12 +44,33 @@ int main(int argc, const char **argv)
         return 1;
     }
 
+    wcout << "Writing data to pipe..." << endl;
+
+    // This call blocks until a server process reads all the data
+    const wchar_t *data = L"*** Hello Pipe World ***";
+    DWORD numBytesWritten = 0;
+    BOOL result = WriteFile(
+        pipe, // handle to our outbound pipe
+        data, // data to send
+        wcslen(data) * sizeof(wchar_t), // length of data to send (bytes)
+        &numBytesWritten, // will store actual amount of data sent
+        NULL // not using overlapped IO
+        );
+
+    if (result) {
+        wcout << "Number of bytes sent: " << numBytesWritten << endl;
+    }
+    else {
+        wcout << "Failed to send data." << endl;
+        // look up error code here using GetLastError()
+    }
+
     wcout << "Reading data from pipe..." << endl;
 
     // The read operation will block until there is data to read
     wchar_t buffer[128];
     DWORD numBytesRead = 0;
-    BOOL result = ReadFile(
+    result = ReadFile(
         pipe,
         buffer, // the data from the pipe will be put here
         127 * sizeof(wchar_t), // number of bytes allocated
